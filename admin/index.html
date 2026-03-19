@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDG.bg Chatbot — Админ панел</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #1e293b; }
+
+    /* Login */
+    #login-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    }
+    .login-box {
+      background: white; padding: 40px; border-radius: 16px; width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    .login-box h1 { font-size: 22px; margin-bottom: 8px; color: #1e293b; }
+    .login-box p { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+    .login-box input {
+      width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0;
+      border-radius: 8px; font-size: 14px; margin-bottom: 12px; outline: none;
+    }
+    .login-box input:focus { border-color: #2563eb; }
+    .login-box button {
+      width: 100%; padding: 12px; background: #2563eb; color: white;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .login-box button:hover { background: #1d4ed8; }
+    .login-error { color: #dc2626; font-size: 13px; margin-bottom: 12px; display: none; }
+
+    /* App layout */
+    #app { display: none; }
+    .topbar {
+      background: white; border-bottom: 1px solid #e2e8f0;
+      padding: 0 24px; display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .topbar h1 { font-size: 16px; color: #1e293b; }
+    .topbar h1 span { color: #2563eb; }
+    .topbar .logout-btn {
+      background: none; border: 1px solid #e2e8f0; border-radius: 6px;
+      padding: 6px 14px; font-size: 13px; cursor: pointer; color: #64748b;
+    }
+    .topbar .logout-btn:hover { border-color: #dc2626; color: #dc2626; }
+
+    /* Tabs */
+    .tabs {
+      background: white; border-bottom: 1px solid #e2e8f0;
+      padding: 0 24px; display: flex; gap: 0;
+    }
+    .tab-btn {
+      padding: 14px 20px; border: none; background: none; cursor: pointer;
+      font-size: 14px; color: #64748b; border-bottom: 2px solid transparent;
+      transition: all 0.15s; font-weight: 500;
+    }
+    .tab-btn:hover { color: #2563eb; }
+    .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; }
+
+    .content { padding: 24px; max-width: 1200px; margin: 0 auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: white; border-radius: 12px; padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 20px;
+    }
+    .card h2 { font-size: 16px; margin-bottom: 16px; color: #1e293b; }
+
+    /* Filter bar */
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .filter-bar input, .filter-bar select {
+      padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;
+      font-size: 13px; outline: none;
+    }
+    .filter-bar input { flex: 1; min-width: 200px; }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: #2563eb; }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px; border: none; border-radius: 6px; font-size: 13px;
+      font-weight: 500; cursor: pointer; transition: all 0.15s; display: inline-flex;
+      align-items: center; gap: 6px;
+    }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-success { background: #16a34a; color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-outline {
+      background: white; color: #2563eb; border: 1px solid #2563eb;
+    }
+    .btn-outline:hover { background: #eff6ff; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; padding: 10px 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 600; font-size: 12px; text-transform: uppercase; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    tr:hover td { background: #f8fafc; }
+    .truncate { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Role badges */
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 500; margin: 1px 2px;
+    }
+    .badge-director { background: #dbeafe; color: #1e40af; }
+    .badge-teacher { background: #dcfce7; color: #166534; }
+    .badge-plr { background: #fef3c7; color: #92400e; }
+    .badge-parent { background: #fce7f3; color: #9d174d; }
+    .badge-dod_admin, .badge-dod_teacher { background: #e0e7ff; color: #3730a3; }
+    .badge-domakin, .badge-zas { background: #f1f5f9; color: #475569; }
+    .badge-admin { background: #fee2e2; color: #991b1b; }
+    .badge-status { padding: 3px 10px; border-radius: 12px; }
+    .badge-active { background: #dcfce7; color: #166534; }
+    .badge-inactive { background: #fee2e2; color: #991b1b; }
+    .badge-resolved { background: #dcfce7; color: #166534; }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+
+    /* Form / Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 1000; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white; border-radius: 12px; padding: 28px;
+      width: 560px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+    .modal h2 { font-size: 18px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 6px; }
+    .form-group textarea, .form-group select, .form-group input[type="text"] {
+      width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0;
+      border-radius: 8px; font-size: 14px; outline: none; font-family: inherit;
+    }
+    .form-group textarea { min-height: 80px; resize: vertical; }
+    .form-group textarea:focus, .form-group select:focus, .form-group input[type="text"]:focus { border-color: #2563eb; }
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 10px; }
+    .checkbox-group label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 400; cursor: pointer; }
+    .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+    /* Stats cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: white; border-radius: 12px; padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06); text-align: center;
+    }
+    .stat-card .stat-value { font-size: 32px; font-weight: 700; color: #2563eb; }
+    .stat-card .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+      border-radius: 8px; color: white; font-size: 14px; z-index: 2000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: translateY(80px);
+      transition: transform 0.3s ease; opacity: 0;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast-success { background: #16a34a; }
+    .toast-error { background: #dc2626; }
+  </style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>EDG.bg Админ панел</h1>
+    <p>Управление на чатбот Q&A, логове и статистики</p>
+    <div id="login-error" class="login-error">Грешно потребителско име или парола</div>
+    <input type="text" id="login-user" placeholder="Потребител" value="">
+    <input type="password" id="login-pass" placeholder="Парола" value="">
+    <button id="login-btn">Вход</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div class="topbar">
+    <h1><span>EDG.bg</span> Чатбот Админ</h1>
+    <button class="logout-btn" id="logout-btn">Изход</button>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="qa">Q&A Manager</button>
+    <button class="tab-btn" data-tab="logs">Неразпознати въпроси</button>
+    <button class="tab-btn" data-tab="stats">Статистики</button>
+  </div>
+
+  <div class="content">
+    <!-- Tab 1: Q&A Manager -->
+    <div id="tab-qa" class="tab-content active">
+      <div class="card">
+        <div class="filter-bar">
+          <input type="text" id="qa-search" placeholder="Търсене по текст...">
+          <select id="qa-role-filter">
+            <option value="">Всички роли</option>
+            <option value="director">Директор</option>
+            <option value="admin">Админ</option>
+            <option value="teacher">Учител</option>
+            <option value="plr">ПЛР</option>
+            <option value="dod_admin">ДОД Админ</option>
+            <option value="dod_teacher">ДОД Учител</option>
+            <option value="domakin">Домакин</option>
+            <option value="zas">ЗАС</option>
+            <option value="parent">Родител</option>
+          </select>
+          <button class="btn btn-primary" id="add-qa-btn">+ Добави Q&A</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Въпрос</th>
+                <th>Отговор</th>
+                <th>Роли</th>
+                <th>Категория</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="qa-tbody"></tbody>
+          </table>
+        </div>
+        <div id="qa-empty" class="empty" style="display:none;">Няма намерени Q&A двойки</div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Unmatched Logs -->
+    <div id="tab-logs" class="tab-content">
+      <div class="card">
+        <div class="filter-bar">
+          <select id="logs-filter">
+            <option value="">Всички</option>
+            <option value="false" selected>Нерешени</option>
+            <option value="true">Решени</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Въпрос</th>
+                <th>Роля</th>
+                <th>Институция</th>
+                <th>Дата</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="logs-tbody"></tbody>
+          </table>
+        </div>
+        <div id="logs-empty" class="empty" style="display:none;">Няма неразпознати въпроси</div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Statistics -->
+    <div id="tab-stats" class="tab-content">
+      <div class="stats-grid" id="stats-grid"></div>
+      <div class="card">
+        <h2>Топ 5 неотговорени теми</h2>
+        <div id="top-unmatched"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Q&A Modal -->
+<div class="modal-overlay" id="qa-modal">
+  <div class="modal">
+    <h2 id="modal-title">Добави Q&A</h2>
+    <input type="hidden" id="qa-edit-id">
+    <div class="form-group">
+      <label>Въпрос</label>
+      <textarea id="qa-question" placeholder="Въведете въпроса..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Отговор</label>
+      <textarea id="qa-answer" placeholder="Въведете отговора..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Категория</label>
+      <select id="qa-category">
+        <option value="">— Без категория —</option>
+        <option value="scheduling">Седмична програма</option>
+        <option value="medical_notes">Медицински бележки</option>
+        <option value="access">Достъп и профили</option>
+        <option value="fees">Такси</option>
+        <option value="plr">ПЛР</option>
+        <option value="registration">Регистрация</option>
+        <option value="login">Вход</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Роли</label>
+      <div class="checkbox-group" id="qa-roles">
+        <label><input type="checkbox" value="director"> Директор</label>
+        <label><input type="checkbox" value="admin"> Админ</label>
+        <label><input type="checkbox" value="teacher"> Учител</label>
+        <label><input type="checkbox" value="plr"> ПЛР</label>
+        <label><input type="checkbox" value="dod_admin"> ДОД Админ</label>
+        <label><input type="checkbox" value="dod_teacher"> ДОД Учител</label>
+        <label><input type="checkbox" value="domakin"> Домакин</label>
+        <label><input type="checkbox" value="zas"> ЗАС</label>
+        <label><input type="checkbox" value="parent"> Родител</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label><input type="checkbox" id="qa-active" checked> Активен</label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" id="modal-cancel">Отказ</button>
+      <button class="btn btn-primary" id="modal-save">Запази</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  let token = '';
+  let qaData = [];
+
+  // ===== Auth =====
+  const loginScreen = document.getElementById('login-screen');
+  const app = document.getElementById('app');
+  const loginBtn = document.getElementById('login-btn');
+  const loginError = document.getElementById('login-error');
+
+  loginBtn.addEventListener('click', doLogin);
+  document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+  async function doLogin() {
+    const user = document.getElementById('login-user').value.trim();
+    const pass = document.getElementById('login-pass').value.trim();
+
+    if (user === 'admin' && pass === 'admin') {
+      try {
+        const res = await fetch('/api/dev/token?role=admin');
+        const data = await res.json();
+        token = data.token;
+        loginScreen.style.display = 'none';
+        app.style.display = 'block';
+        loadQA();
+      } catch (err) {
+        loginError.textContent = 'Грешка при свързване със сървъра';
+        loginError.style.display = 'block';
+      }
+    } else {
+      loginError.textContent = 'Грешно потребителско име или парола';
+      loginError.style.display = 'block';
+    }
+  }
+
+  document.getElementById('logout-btn').addEventListener('click', () => {
+    token = '';
+    app.style.display = 'none';
+    loginScreen.style.display = 'flex';
+    document.getElementById('login-pass').value = '';
+  });
+
+  // ===== API helper =====
+  async function api(method, path, body) {
+    const opts = {
+      method,
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch('/api/admin' + path, opts);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Грешка');
+    return data;
+  }
+
+  // ===== Tabs =====
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+
+      if (btn.dataset.tab === 'qa') loadQA();
+      if (btn.dataset.tab === 'logs') loadLogs();
+      if (btn.dataset.tab === 'stats') loadStats();
+    });
+  });
+
+  // ===== Toast =====
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast toast-' + type + ' show';
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ===== Role badge =====
+  const roleLabels = {
+    director: 'Директор', admin: 'Админ', teacher: 'Учител', plr: 'ПЛР',
+    dod_admin: 'ДОД Адм.', dod_teacher: 'ДОД Уч.', domakin: 'Домакин', zas: 'ЗАС', parent: 'Родител'
+  };
+
+  function roleBadges(roles) {
+    if (!roles || !roles.length) return '';
+    return roles.map(r => `<span class="badge badge-${r}">${roleLabels[r] || r}</span>`).join('');
+  }
+
+  function categoryLabel(cat) {
+    const map = { scheduling: 'Програма', medical_notes: 'Мед. бележки', access: 'Достъп', fees: 'Такси', plr: 'ПЛР', registration: 'Регистрация', login: 'Вход' };
+    return map[cat] || cat || '—';
+  }
+
+  function truncate(str, len) {
+    if (!str) return '';
+    return str.length > len ? str.substring(0, len) + '...' : str;
+  }
+
+  function formatDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ===== Q&A Manager =====
+  const qaTbody = document.getElementById('qa-tbody');
+  const qaSearch = document.getElementById('qa-search');
+  const qaRoleFilter = document.getElementById('qa-role-filter');
+  const qaEmpty = document.getElementById('qa-empty');
+
+  async function loadQA() {
+    try {
+      const role = qaRoleFilter.value;
+      const params = role ? '?role=' + role : '';
+      const data = await api('GET', '/qa' + params);
+      qaData = data.qa_pairs || [];
+      renderQA();
+    } catch (err) {
+      showToast('Грешка при зареждане: ' + err.message, 'error');
+    }
+  }
+
+  function renderQA() {
+    const search = qaSearch.value.toLowerCase();
+    const filtered = qaData.filter(q =>
+      !search || q.question.toLowerCase().includes(search) || q.answer.toLowerCase().includes(search)
+    );
+
+    if (filtered.length === 0) {
+      qaTbody.innerHTML = '';
+      qaEmpty.style.display = 'block';
+      return;
+    }
+    qaEmpty.style.display = 'none';
+
+    qaTbody.innerHTML = filtered.map(q => `
+      <tr>
+        <td>${q.id}</td>
+        <td class="truncate" title="${q.question.replace(/"/g, '&quot;')}">${truncate(q.question, 60)}</td>
+        <td class="truncate" title="${q.answer.replace(/"/g, '&quot;')}">${truncate(q.answer, 60)}</td>
+        <td>${roleBadges(q.roles)}</td>
+        <td>${categoryLabel(q.category)}</td>
+        <td><span class="badge badge-status ${q.is_active ? 'badge-active' : 'badge-inactive'}">${q.is_active ? 'Активен' : 'Неактивен'}</span></td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="editQA(${q.id})">Редактирай</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteQA(${q.id})">Изтрий</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  qaSearch.addEventListener('input', renderQA);
+  qaRoleFilter.addEventListener('change', loadQA);
+
+  // ===== Q&A Modal =====
+  const qaModal = document.getElementById('qa-modal');
+  const modalTitle = document.getElementById('modal-title');
+  const qaEditId = document.getElementById('qa-edit-id');
+  const qaQuestion = document.getElementById('qa-question');
+  const qaAnswer = document.getElementById('qa-answer');
+  const qaCategory = document.getElementById('qa-category');
+  const qaActive = document.getElementById('qa-active');
+  const roleCheckboxes = document.querySelectorAll('#qa-roles input[type="checkbox"]');
+
+  document.getElementById('add-qa-btn').addEventListener('click', () => openModal());
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+  qaModal.addEventListener('click', e => { if (e.target === qaModal) closeModal(); });
+
+  function openModal(qa) {
+    qaEditId.value = qa ? qa.id : '';
+    modalTitle.textContent = qa ? 'Редактирай Q&A #' + qa.id : 'Добави Q&A';
+    qaQuestion.value = qa ? qa.question : '';
+    qaAnswer.value = qa ? qa.answer : '';
+    qaCategory.value = qa ? (qa.category || '') : '';
+    qaActive.checked = qa ? qa.is_active : true;
+    roleCheckboxes.forEach(cb => {
+      cb.checked = qa ? (qa.roles || []).includes(cb.value) : false;
+    });
+    qaModal.classList.add('open');
+    qaQuestion.focus();
+  }
+
+  function closeModal() {
+    qaModal.classList.remove('open');
+  }
+
+  document.getElementById('modal-save').addEventListener('click', async () => {
+    const roles = Array.from(roleCheckboxes).filter(cb => cb.checked).map(cb => cb.value);
+    if (!qaQuestion.value.trim() || !qaAnswer.value.trim() || roles.length === 0) {
+      showToast('Попълнете въпрос, отговор и поне една роля', 'error');
+      return;
+    }
+
+    const body = {
+      question: qaQuestion.value.trim(),
+      answer: qaAnswer.value.trim(),
+      roles,
+      category: qaCategory.value || null,
+      is_active: qaActive.checked,
+    };
+
+    try {
+      const id = qaEditId.value;
+      if (id) {
+        await api('PUT', '/qa/' + id, body);
+        showToast('Q&A #' + id + ' обновен успешно', 'success');
+      } else {
+        await api('POST', '/qa', body);
+        showToast('Q&A добавен успешно', 'success');
+      }
+      closeModal();
+      loadQA();
+    } catch (err) {
+      showToast('Грешка: ' + err.message, 'error');
+    }
+  });
+
+  window.editQA = function(id) {
+    const qa = qaData.find(q => q.id === id);
+    if (qa) openModal(qa);
+  };
+
+  window.deleteQA = async function(id) {
+    if (!confirm('Сигурни ли сте, че искате да изтриете Q&A #' + id + '?')) return;
+    try {
+      await api('DELETE', '/qa/' + id);
+      showToast('Q&A #' + id + ' изтрит', 'success');
+      loadQA();
+    } catch (err) {
+      showToast('Грешка: ' + err.message, 'error');
+    }
+  };
+
+  // ===== Unmatched Logs =====
+  const logsTbody = document.getElementById('logs-tbody');
+  const logsFilter = document.getElementById('logs-filter');
+  const logsEmpty = document.getElementById('logs-empty');
+
+  logsFilter.addEventListener('change', loadLogs);
+
+  async function loadLogs() {
+    try {
+      const resolved = logsFilter.value;
+      const params = resolved !== '' ? '?resolved=' + resolved : '';
+      const data = await api('GET', '/logs' + params);
+      const logs = data.logs || [];
+
+      if (logs.length === 0) {
+        logsTbody.innerHTML = '';
+        logsEmpty.style.display = 'block';
+        return;
+      }
+      logsEmpty.style.display = 'none';
+
+      logsTbody.innerHTML = logs.map(l => `
+        <tr>
+          <td>${l.id}</td>
+          <td title="${(l.question || '').replace(/"/g, '&quot;')}">${truncate(l.question, 80)}</td>
+          <td><span class="badge badge-${l.user_role}">${roleLabels[l.user_role] || l.user_role}</span></td>
+          <td>${l.institution_id || '—'}</td>
+          <td>${formatDate(l.created_at)}</td>
+          <td><span class="badge badge-status ${l.is_resolved ? 'badge-resolved' : 'badge-pending'}">${l.is_resolved ? 'Решен' : 'Нов'}</span></td>
+          <td>
+            ${!l.is_resolved ? `<button class="btn btn-success btn-sm" onclick="resolveLog(${l.id})">Реши</button>` : ''}
+            <button class="btn btn-outline btn-sm" onclick="createQAFromLog(${l.id})">Създай Q&A</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      showToast('Грешка при зареждане на логове: ' + err.message, 'error');
+    }
+  }
+
+  window.resolveLog = async function(id) {
+    try {
+      await api('POST', '/logs/' + id + '/resolve');
+      showToast('Въпрос #' + id + ' маркиран като решен', 'success');
+      loadLogs();
+    } catch (err) {
+      showToast('Грешка: ' + err.message, 'error');
+    }
+  };
+
+  window.createQAFromLog = function(id) {
+    // Switch to Q&A tab
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-tab="qa"]').classList.add('active');
+    document.getElementById('tab-qa').classList.add('active');
+
+    // Find log entry from the table
+    const row = logsTbody.querySelector(`tr td:first-child`);
+    const rows = logsTbody.querySelectorAll('tr');
+    let question = '';
+    rows.forEach(r => {
+      const cells = r.querySelectorAll('td');
+      if (cells[0] && cells[0].textContent === String(id)) {
+        question = cells[1].getAttribute('title') || cells[1].textContent;
+      }
+    });
+
+    openModal();
+    qaQuestion.value = question;
+    qaQuestion.focus();
+  };
+
+  // ===== Statistics =====
+  async function loadStats() {
+    try {
+      const [statsData, logsData] = await Promise.all([
+        api('GET', '/stats'),
+        api('GET', '/logs?resolved=false'),
+      ]);
+
+      const totalQ = statsData.total_messages || 0;
+      const unmatchedTotal = statsData.unmatched_total || 0;
+      const successRate = totalQ > 0 ? Math.round(((totalQ - unmatchedTotal) / totalQ) * 100) : 0;
+
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-value">${statsData.total_sessions}</div>
+          <div class="stat-label">Сесии</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${statsData.total_messages}</div>
+          <div class="stat-label">Съобщения</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${statsData.active_qa_pairs}</div>
+          <div class="stat-label">Активни Q&A</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${successRate}%</div>
+          <div class="stat-label">Успешно отговорени</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${statsData.unmatched_pending}</div>
+          <div class="stat-label">Нерешени въпроси</div>
+        </div>
+      `;
+
+      // Top 5 unmatched
+      const logs = logsData.logs || [];
+      const counts = {};
+      logs.forEach(l => {
+        const key = l.question.toLowerCase().trim();
+        counts[key] = counts[key] || { question: l.question, count: 0 };
+        counts[key].count++;
+      });
+      const top5 = Object.values(counts).sort((a, b) => b.count - a.count).slice(0, 5);
+
+      const topEl = document.getElementById('top-unmatched');
+      if (top5.length === 0) {
+        topEl.innerHTML = '<div class="empty">Няма неотговорени въпроси</div>';
+      } else {
+        topEl.innerHTML = '<table><thead><tr><th>Въпрос</th><th>Брой</th></tr></thead><tbody>' +
+          top5.map(t => `<tr><td>${truncate(t.question, 100)}</td><td><strong>${t.count}</strong></td></tr>`).join('') +
+          '</tbody></table>';
+      }
+    } catch (err) {
+      showToast('Грешка при зареждане на статистики: ' + err.message, 'error');
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

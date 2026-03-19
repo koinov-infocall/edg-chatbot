@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDG.bg Chatbot - Тест</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 40px;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .info {
+      background: #e0f2fe;
+      border: 1px solid #7dd3fc;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .info strong { color: #0369a1; }
+    .role-selector {
+      margin: 20px 0;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .role-btn {
+      padding: 8px 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .role-btn:hover { border-color: #2563eb; color: #2563eb; }
+    .role-btn.active { background: #2563eb; color: white; border-color: #2563eb; }
+    #status {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 12px;
+    }
+    #status.error { color: #dc2626; }
+    #status.ok { color: #16a34a; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>EDG.bg Chatbot — Тестова страница</h1>
+    <div class="info">
+      <strong>Роля:</strong> <span id="current-role">director</span><br>
+      <strong>Институция:</strong> ДГ Тест<br>
+      <strong>Статус:</strong> <span id="status">Зареждане...</span>
+    </div>
+    <div class="role-selector">
+      <button class="role-btn active" data-role="director">Директор</button>
+      <button class="role-btn" data-role="teacher">Учител</button>
+      <button class="role-btn" data-role="plr">ПЛР</button>
+      <button class="role-btn" data-role="dod_admin">ДОД Админ</button>
+      <button class="role-btn" data-role="parent">Родител</button>
+    </div>
+    <p style="font-size:13px;color:#64748b;">Натиснете бутон за смяна на ролята. Чатботът е долу вдясно.</p>
+  </div>
+
+  <script>
+    let currentRole = 'director';
+
+    async function loadToken(role) {
+      const statusEl = document.getElementById('status');
+      const roleEl = document.getElementById('current-role');
+      statusEl.className = '';
+      statusEl.textContent = 'Зареждане на токен...';
+
+      try {
+        const res = await fetch('/api/dev/token?role=' + encodeURIComponent(role));
+        const data = await res.json();
+        window.EDG_CHATBOT_TOKEN = data.token;
+        currentRole = data.role;
+        roleEl.textContent = currentRole;
+        statusEl.textContent = 'Готов — токен получен за роля "' + currentRole + '"';
+        statusEl.className = 'ok';
+
+        // Remove existing widget and reload
+        const existing = document.getElementById('edg-chat-widget');
+        if (existing) existing.remove();
+        const oldStyle = document.querySelector('style[data-edg-widget]');
+        if (oldStyle) oldStyle.remove();
+
+        const script = document.createElement('script');
+        script.src = '/widget.js?' + Date.now();
+        document.body.appendChild(script);
+      } catch (err) {
+        statusEl.textContent = 'Грешка: ' + err.message;
+        statusEl.className = 'error';
+      }
+    }
+
+    // Role selector buttons
+    document.querySelectorAll('.role-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        loadToken(btn.dataset.role);
+      });
+    });
+
+    // Initial load
+    loadToken('director');
+  </script>
+</body>
+</html>

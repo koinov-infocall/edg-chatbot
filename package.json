@@ -1,0 +1,31 @@
+{
+  "name": "edg-chatbot",
+  "version": "1.0.0",
+  "description": "AI chatbot for EDG.bg - Electronic Diary for Kindergartens",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "test": "jest --detectOpenHandles",
+    "seed": "psql $DATABASE_URL -f src/db/schema.sql && psql $DATABASE_URL -f src/db/seed.sql"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.20.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "nodemon": "^3.1.14"
+  }
+}

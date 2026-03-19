@@ -52,6 +52,9 @@
       align-self: flex-start; background: #f1f5f9; color: #1e293b;
       border-bottom-left-radius: 4px;
     }
+    .edg-msg.bot ol, .edg-msg.bot ul { margin: 6px 0; padding-left: 20px; }
+    .edg-msg.bot li { margin-bottom: 4px; }
+    .edg-msg.bot strong { font-weight: 600; }
     .edg-typing { align-self: flex-start; padding: 12px 16px; background: #f1f5f9; border-radius: 12px; }
     .edg-typing span {
       display: inline-block; width: 8px; height: 8px; margin: 0 2px;
@@ -170,10 +173,56 @@
     }
   }
 
+  function renderMarkdown(text) {
+    // Escape HTML to prevent XSS
+    let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Bold: **text**
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Split into lines for list processing
+    const lines = html.split('\n');
+    let result = [];
+    let inOl = false;
+    let inUl = false;
+
+    for (const line of lines) {
+      const olMatch = line.match(/^\s*(\d+)\.\s+(.+)/);
+      const ulMatch = line.match(/^\s*[-•]\s+(.+)/);
+
+      if (olMatch) {
+        if (!inOl) { if (inUl) { result.push('</ul>'); inUl = false; } result.push('<ol>'); inOl = true; }
+        result.push('<li>' + olMatch[2] + '</li>');
+      } else if (ulMatch) {
+        if (!inUl) { if (inOl) { result.push('</ol>'); inOl = false; } result.push('<ul>'); inUl = true; }
+        result.push('<li>' + ulMatch[1] + '</li>');
+      } else {
+        if (inOl) { result.push('</ol>'); inOl = false; }
+        if (inUl) { result.push('</ul>'); inUl = false; }
+        result.push(line);
+      }
+    }
+    if (inOl) result.push('</ol>');
+    if (inUl) result.push('</ul>');
+
+    // Join and convert remaining newlines to <br>
+    html = result.join('\n');
+    html = html.replace(/\n/g, '<br>');
+    // Clean up <br> around list tags
+    html = html.replace(/<br>\s*(<\/?[uo]l>)/g, '$1');
+    html = html.replace(/(<\/?[uo]l>)\s*<br>/g, '$1');
+
+    return html;
+  }
+
   function addMessage(text, type) {
     const div = document.createElement('div');
     div.className = 'edg-msg ' + type;
-    div.textContent = text;
+    if (type === 'bot') {
+      div.innerHTML = renderMarkdown(text);
+    } else {
+      div.textContent = text;
+    }
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }

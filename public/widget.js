@@ -197,6 +197,7 @@
         if (!inUl) { if (inOl) { result.push('</ol>'); inOl = false; } result.push('<ul>'); inUl = true; }
         result.push('<li>' + ulMatch[1] + '</li>');
       } else {
+        if ((inOl || inUl) && line.trim() === '') continue;
         if (inOl) { result.push('</ol>'); inOl = false; }
         if (inUl) { result.push('</ul>'); inUl = false; }
         result.push(line);

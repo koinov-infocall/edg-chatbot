@@ -14,20 +14,22 @@ async function askClaude(systemPrompt, userMessage, conversationHistory = []) {
   ];
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      temperature: 0.3,
-      timeout: 30000,
-      system: [
-        {
-          type: 'text',
-          text: systemPrompt,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages,
-    });
+    const response = await client.messages.create(
+      {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 500,
+        temperature: 0.3,
+        system: [
+          {
+            type: 'text',
+            text: systemPrompt,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
+        messages,
+      },
+      { timeout: 30000 }
+    );
 
     const text = response.content
       .filter((block) => block.type === 'text')

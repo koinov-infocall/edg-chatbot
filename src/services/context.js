@@ -1,6 +1,6 @@
 function buildSystemPrompt(userRole, institutionName, qaPairs) {
   const qaBlock = qaPairs
-    .map((qa, i) => `${i + 1}. В: ${qa.question}\n   О: ${qa.answer}`)
+    .map((qa) => `[QA#${qa.id}] В: ${qa.question}\n   О: ${qa.answer}`)
     .join('\n\n');
 
   return `Ти си помощник-бот на EDG.bg — Електронен дневник за детски градини в България.
@@ -23,6 +23,7 @@ function buildSystemPrompt(userRole, institutionName, qaPairs) {
 - Използвай **bold** за имена на модули, бутони и менюта (напр. **Седмична програма**, **Запиши**).
 - Дръж отговорите кратки и ясни — без излишни обяснения.
 - НЕ използвай markdown headers (#, ##, ###).
+- ВАЖНО: Когато отговаряш на въпрос от базата знания, добави на края на отговора маркер [MATCHED:QA#ID], където ID е номерът от базата (напр. [MATCHED:QA#5]). Този маркер няма да се показва на потребителя. Ако комбинираш няколко Q&A, посочи основния.
 
 БАЗА ЗНАНИЯ (въпроси и отговори за роля "${userRole}"):
 

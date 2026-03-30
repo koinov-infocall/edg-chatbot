@@ -15,18 +15,19 @@ async function matchQuestion(question, userRole, institutionId, institutionName,
   const response = await askClaude(systemPrompt, question, sessionHistory);
 
   const isUnmatched = response.includes('[UNMATCHED]');
-  const cleanResponse = response.replace('[UNMATCHED]', '').trim();
 
-  // Try to find which Q&A pair was matched
+  // Parse matched Q&A ID from [MATCHED:QA#123] marker
   let matchedQaId = null;
-  if (!isUnmatched) {
-    for (const qa of qaPairs) {
-      if (response.toLowerCase().includes(qa.answer.substring(0, 50).toLowerCase())) {
-        matchedQaId = qa.id;
-        break;
-      }
-    }
+  const matchMarker = response.match(/\[MATCHED:QA#(\d+)\]/);
+  if (matchMarker) {
+    matchedQaId = parseInt(matchMarker[1]);
   }
+
+  // Remove all markers from the response shown to the user
+  const cleanResponse = response
+    .replace(/\[UNMATCHED\]/g, '')
+    .replace(/\[MATCHED:QA#\d+\]/g, '')
+    .trim();
 
   return {
     response: cleanResponse,

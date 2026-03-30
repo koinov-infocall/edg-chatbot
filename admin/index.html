@@ -157,6 +157,21 @@
     .stat-card .stat-value { font-size: 32px; font-weight: 700; color: #2563eb; }
     .stat-card .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
 
+    /* Pagination */
+    .pagination {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; margin-top: 8px; font-size: 13px; color: #64748b;
+    }
+    .pagination .page-info { display: flex; align-items: center; gap: 8px; }
+    .pagination .page-btns { display: flex; gap: 6px; }
+    .pagination button {
+      padding: 6px 14px; border: 1px solid #e2e8f0; border-radius: 6px;
+      background: white; cursor: pointer; font-size: 13px; color: #1e293b;
+      transition: all 0.15s;
+    }
+    .pagination button:hover:not(:disabled) { border-color: #2563eb; color: #2563eb; }
+    .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
     /* Empty state */
     .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
 
@@ -234,6 +249,14 @@
             <tbody id="qa-tbody"></tbody>
           </table>
         </div>
+        <div id="qa-pagination" class="pagination" style="display:none;">
+          <span class="page-info">Общо: <strong id="qa-total">0</strong> записа</span>
+          <div class="page-btns">
+            <button id="qa-prev" disabled>&#8592; Предишна</button>
+            <span id="qa-page-info">Страница 1 от 1</span>
+            <button id="qa-next" disabled>Следваща &#8594;</button>
+          </div>
+        </div>
         <div id="qa-empty" class="empty" style="display:none;">Няма намерени Q&A двойки</div>
       </div>
     </div>
@@ -263,6 +286,14 @@
             </thead>
             <tbody id="logs-tbody"></tbody>
           </table>
+        </div>
+        <div id="logs-pagination" class="pagination" style="display:none;">
+          <span class="page-info">Общо: <strong id="logs-total">0</strong> записа</span>
+          <div class="page-btns">
+            <button id="logs-prev" disabled>&#8592; Предишна</button>
+            <span id="logs-page-info">Страница 1 от 1</span>
+            <button id="logs-next" disabled>Следваща &#8594;</button>
+          </div>
         </div>
         <div id="logs-empty" class="empty" style="display:none;">Няма неразпознати въпроси</div>
       </div>
@@ -338,6 +369,12 @@
 
   let token = '';
   let qaData = [];
+  let qaPage = 1;
+  let qaTotal = 0;
+  const qaLimit = 20;
+  let logsPage = 1;
+  let logsTotal = 0;
+  const logsLimit = 20;
 
   // ===== Auth =====
   const loginScreen = document.getElementById('login-screen');
@@ -444,30 +481,50 @@
   const qaRoleFilter = document.getElementById('qa-role-filter');
   const qaEmpty = document.getElementById('qa-empty');
 
+  const qaPagination = document.getElementById('qa-pagination');
+  const qaPrev = document.getElementById('qa-prev');
+  const qaNext = document.getElementById('qa-next');
+  const qaPageInfo = document.getElementById('qa-page-info');
+  const qaTotalEl = document.getElementById('qa-total');
+
+  qaPrev.addEventListener('click', () => { if (qaPage > 1) { qaPage--; loadQA(); } });
+  qaNext.addEventListener('click', () => { qaPage++; loadQA(); });
+
   async function loadQA() {
     try {
       const role = qaRoleFilter.value;
-      const params = role ? '?role=' + role : '';
+      const search = qaSearch.value.trim();
+      let params = `?page=${qaPage}&limit=${qaLimit}`;
+      if (role) params += '&role=' + role;
       const data = await api('GET', '/qa' + params);
       qaData = data.qa_pairs || [];
-      renderQA();
+      qaTotal = data.total || 0;
+      renderQA(search);
     } catch (err) {
       showToast('Грешка при зареждане: ' + err.message, 'error');
     }
   }
 
-  function renderQA() {
-    const search = qaSearch.value.toLowerCase();
+  function renderQA(search) {
+    search = (search || qaSearch.value).toLowerCase();
     const filtered = qaData.filter(q =>
       !search || q.question.toLowerCase().includes(search) || q.answer.toLowerCase().includes(search)
     );
 
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && qaTotal === 0) {
       qaTbody.innerHTML = '';
       qaEmpty.style.display = 'block';
+      qaPagination.style.display = 'none';
       return;
     }
     qaEmpty.style.display = 'none';
+
+    const totalPages = Math.max(1, Math.ceil(qaTotal / qaLimit));
+    qaPagination.style.display = 'flex';
+    qaTotalEl.textContent = qaTotal;
+    qaPageInfo.textContent = `Страница ${qaPage} от ${totalPages}`;
+    qaPrev.disabled = qaPage <= 1;
+    qaNext.disabled = qaPage >= totalPages;
 
     qaTbody.innerHTML = filtered.map(q => `
       <tr>
@@ -485,8 +542,8 @@
     `).join('');
   }
 
-  qaSearch.addEventListener('input', renderQA);
-  qaRoleFilter.addEventListener('change', loadQA);
+  qaSearch.addEventListener('input', () => renderQA());
+  qaRoleFilter.addEventListener('change', () => { qaPage = 1; loadQA(); });
 
   // ===== Q&A Modal =====
   const qaModal = document.getElementById('qa-modal');
@@ -571,22 +628,39 @@
   const logsTbody = document.getElementById('logs-tbody');
   const logsFilter = document.getElementById('logs-filter');
   const logsEmpty = document.getElementById('logs-empty');
+  const logsPagination = document.getElementById('logs-pagination');
+  const logsPrev = document.getElementById('logs-prev');
+  const logsNext = document.getElementById('logs-next');
+  const logsPageInfo = document.getElementById('logs-page-info');
+  const logsTotalEl = document.getElementById('logs-total');
 
-  logsFilter.addEventListener('change', loadLogs);
+  logsFilter.addEventListener('change', () => { logsPage = 1; loadLogs(); });
+  logsPrev.addEventListener('click', () => { if (logsPage > 1) { logsPage--; loadLogs(); } });
+  logsNext.addEventListener('click', () => { logsPage++; loadLogs(); });
 
   async function loadLogs() {
     try {
       const resolved = logsFilter.value;
-      const params = resolved !== '' ? '?resolved=' + resolved : '';
+      let params = `?page=${logsPage}&limit=${logsLimit}`;
+      if (resolved !== '') params += '&resolved=' + resolved;
       const data = await api('GET', '/logs' + params);
       const logs = data.logs || [];
+      logsTotal = data.total || 0;
 
-      if (logs.length === 0) {
+      if (logs.length === 0 && logsTotal === 0) {
         logsTbody.innerHTML = '';
         logsEmpty.style.display = 'block';
+        logsPagination.style.display = 'none';
         return;
       }
       logsEmpty.style.display = 'none';
+
+      const totalPages = Math.max(1, Math.ceil(logsTotal / logsLimit));
+      logsPagination.style.display = 'flex';
+      logsTotalEl.textContent = logsTotal;
+      logsPageInfo.textContent = `Страница ${logsPage} от ${totalPages}`;
+      logsPrev.disabled = logsPage <= 1;
+      logsNext.disabled = logsPage >= totalPages;
 
       logsTbody.innerHTML = logs.map(l => `
         <tr>

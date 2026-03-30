@@ -13,26 +13,32 @@ async function askClaude(systemPrompt, userMessage, conversationHistory = []) {
     { role: 'user', content: userMessage },
   ];
 
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 500,
-    temperature: 0.3,
-    system: [
-      {
-        type: 'text',
-        text: systemPrompt,
-        cache_control: { type: 'ephemeral' },
-      },
-    ],
-    messages,
-  });
+  try {
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 500,
+      temperature: 0.3,
+      timeout: 30000,
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages,
+    });
 
-  const text = response.content
-    .filter((block) => block.type === 'text')
-    .map((block) => block.text)
-    .join('');
+    const text = response.content
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('');
 
-  return text;
+    return text;
+  } catch (err) {
+    console.error('Claude API error:', err.message || err);
+    return '[UNMATCHED] Този въпрос ме затруднява, но го изпращам веднага на Боряна Георгиева. Тя ще ви съдейства в най-кратки срокове.';
+  }
 }
 
 module.exports = { askClaude };

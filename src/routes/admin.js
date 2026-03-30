@@ -13,29 +13,41 @@ function requireAdmin(req, res, next) {
 
 router.use(requireAdmin);
 
-// GET /api/admin/qa - List Q&A pairs (filterable by role/category)
+// GET /api/admin/qa - List Q&A pairs (filterable by role/category, paginated)
 router.get('/qa', async (req, res) => {
   try {
     const { role, category, active } = req.query;
-    let query = 'SELECT * FROM qa_pairs WHERE 1=1';
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    let where = 'WHERE 1=1';
     const params = [];
 
     if (role) {
       params.push(role);
-      query += ` AND $${params.length} = ANY(roles)`;
+      where += ` AND $${params.length} = ANY(roles)`;
     }
     if (category) {
       params.push(category);
-      query += ` AND category = $${params.length}`;
+      where += ` AND category = $${params.length}`;
     }
     if (active !== undefined) {
       params.push(active === 'true');
-      query += ` AND is_active = $${params.length}`;
+      where += ` AND is_active = $${params.length}`;
     }
 
-    query += ' ORDER BY id ASC';
-    const { rows } = await pool.query(query, params);
-    res.json({ qa_pairs: rows });
+    const countResult = await pool.query(`SELECT COUNT(*) FROM qa_pairs ${where}`, params);
+    const total = parseInt(countResult.rows[0].count);
+
+    params.push(limit);
+    params.push(offset);
+    const { rows } = await pool.query(
+      `SELECT * FROM qa_pairs ${where} ORDER BY id ASC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    res.json({ qa_pairs: rows, total, page, limit });
   } catch (err) {
     console.error('List QA error:', err);
     res.status(500).json({ error: 'Грешка при зареждане на въпросите' });
@@ -112,21 +124,33 @@ router.delete('/qa/:id', async (req, res) => {
   }
 });
 
-// GET /api/admin/logs - Unmatched questions log
+// GET /api/admin/logs - Unmatched questions log (paginated)
 router.get('/logs', async (req, res) => {
   try {
     const { resolved } = req.query;
-    let query = 'SELECT * FROM unmatched_questions';
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    let where = '';
     const params = [];
 
     if (resolved !== undefined) {
       params.push(resolved === 'true');
-      query += ' WHERE is_resolved = $1';
+      where = ' WHERE is_resolved = $1';
     }
 
-    query += ' ORDER BY created_at DESC LIMIT 100';
-    const { rows } = await pool.query(query, params);
-    res.json({ logs: rows });
+    const countResult = await pool.query(`SELECT COUNT(*) FROM unmatched_questions${where}`, params);
+    const total = parseInt(countResult.rows[0].count);
+
+    params.push(limit);
+    params.push(offset);
+    const { rows } = await pool.query(
+      `SELECT * FROM unmatched_questions${where} ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    res.json({ logs: rows, total, page, limit });
   } catch (err) {
     console.error('Logs error:', err);
     res.status(500).json({ error: 'Грешка при зареждане на логовете' });

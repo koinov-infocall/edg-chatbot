@@ -363,6 +363,42 @@ router.post('/messages/:id/unflag', async (req, res) => {
   }
 });
 
+// GET /api/admin/flagged/export - Export flagged messages as TSV
+router.get('/flagged/export', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT m.content as bot_answer, m.flag_note,
+              s.role as user_role,
+              prev.content as user_question
+       FROM chat_messages m
+       LEFT JOIN chat_sessions s ON s.id = m.session_id
+       LEFT JOIN LATERAL (
+         SELECT content FROM chat_messages
+         WHERE session_id = m.session_id AND id < m.id AND role = 'user'
+         ORDER BY id DESC LIMIT 1
+       ) prev ON true
+       WHERE m.flagged_wrong = true AND m.role = 'assistant'
+       ORDER BY m.created_at DESC`
+    );
+
+    const header = 'question\tanswer\troles\tcategory\twrong_answer\tnote';
+    const csvRows = rows.map(r => {
+      const q = (r.user_question || '').replace(/\t/g, ' ').replace(/\n/g, ' ');
+      const wrong = (r.bot_answer || '').replace(/\t/g, ' ').replace(/\n/g, ' ');
+      const note = (r.flag_note || '').replace(/\t/g, ' ').replace(/\n/g, ' ');
+      return `${q}\t\t${r.user_role}\t\t${wrong}\t${note}`;
+    });
+    const csv = '\uFEFF' + header + '\n' + csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="flagged_answers.tsv"');
+    res.send(csv);
+  } catch (err) {
+    console.error('Flagged export error:', err);
+    res.status(500).json({ error: 'Грешка при експорт' });
+  }
+});
+
 // GET /api/admin/flagged - List flagged messages with context (paginated)
 router.get('/flagged', async (req, res) => {
   try {

@@ -367,6 +367,9 @@
 
         <!-- Sub-tab: Flagged -->
         <div id="subtab-flagged" style="display:none;">
+          <div class="filter-bar">
+            <button class="btn btn-primary" id="export-flagged-btn">&#8595; Експорт TSV</button>
+          </div>
           <div class="table-wrap">
             <table>
               <thead>
@@ -1147,6 +1150,22 @@
       document.getElementById('subtab-flagged').style.display = tab === 'flagged' ? '' : 'none';
       if (tab === 'flagged') loadFlagged();
     });
+  });
+
+  // ===== Export Flagged =====
+  document.getElementById('export-flagged-btn').addEventListener('click', () => {
+    fetch('/api/admin/flagged/export', { headers: { 'Authorization': 'Bearer ' + token } })
+      .then(r => r.blob())
+      .then(blob => {
+        const u = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = u;
+        a.download = 'flagged_answers.tsv';
+        a.click();
+        URL.revokeObjectURL(u);
+        showToast('Файлът е изтеглен', 'success');
+      })
+      .catch(() => showToast('Грешка при експорт', 'error'));
   });
 
   // ===== Flagged answers =====

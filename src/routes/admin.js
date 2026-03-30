@@ -307,7 +307,7 @@ router.get('/sessions/:id/messages', async (req, res) => {
   try {
     const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT m.id, m.role, m.content, m.matched_qa_id, m.created_at,
+      `SELECT m.id, m.role, m.content, m.matched_qa_id, m.flagged_wrong, m.flag_note, m.created_at,
               q.question as matched_question, q.answer as matched_answer
        FROM chat_messages m
        LEFT JOIN qa_pairs q ON q.id = m.matched_qa_id
@@ -319,6 +319,85 @@ router.get('/sessions/:id/messages', async (req, res) => {
   } catch (err) {
     console.error('Session messages error:', err);
     res.status(500).json({ error: 'Грешка при зареждане на съобщенията' });
+  }
+});
+
+// POST /api/admin/messages/:id/flag - Flag a message as wrong
+router.post('/messages/:id/flag', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { note } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE chat_messages SET flagged_wrong = true, flag_note = $1
+       WHERE id = $2 AND role = 'assistant'
+       RETURNING id, flagged_wrong, flag_note`,
+      [note || null, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Съобщението не е намерено' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Flag error:', err);
+    res.status(500).json({ error: 'Грешка при маркиране' });
+  }
+});
+
+// POST /api/admin/messages/:id/unflag - Remove flag from message
+router.post('/messages/:id/unflag', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `UPDATE chat_messages SET flagged_wrong = false, flag_note = NULL
+       WHERE id = $1
+       RETURNING id, flagged_wrong`,
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Съобщението не е намерено' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Unflag error:', err);
+    res.status(500).json({ error: 'Грешка при премахване на флаг' });
+  }
+});
+
+// GET /api/admin/flagged - List flagged messages with context (paginated)
+router.get('/flagged', async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM chat_messages WHERE flagged_wrong = true`
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    const { rows } = await pool.query(
+      `SELECT m.id, m.session_id, m.content as bot_answer, m.matched_qa_id, m.flag_note, m.created_at,
+              q.question as matched_question, q.answer as matched_answer,
+              s.role as user_role, s.institution_name,
+              prev.content as user_question
+       FROM chat_messages m
+       LEFT JOIN qa_pairs q ON q.id = m.matched_qa_id
+       LEFT JOIN chat_sessions s ON s.id = m.session_id
+       LEFT JOIN LATERAL (
+         SELECT content FROM chat_messages
+         WHERE session_id = m.session_id AND id < m.id AND role = 'user'
+         ORDER BY id DESC LIMIT 1
+       ) prev ON true
+       WHERE m.flagged_wrong = true AND m.role = 'assistant'
+       ORDER BY m.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    res.json({ flagged: rows, total, page, limit });
+  } catch (err) {
+    console.error('Flagged error:', err);
+    res.status(500).json({ error: 'Грешка при зареждане на грешните отговори' });
   }
 });
 

@@ -202,6 +202,30 @@
       font-size: 11px; color: #64748b; margin-top: 6px;
       padding-top: 6px; border-top: 1px solid #e2e8f0;
     }
+    .chat-bubble.bot-msg.flagged {
+      border-color: #dc2626; background: #fef2f2;
+    }
+    .chat-bubble .bubble-actions {
+      display: flex; gap: 6px; margin-top: 6px; align-items: center;
+    }
+    .flag-btn {
+      background: none; border: 1px solid #e2e8f0; border-radius: 4px;
+      padding: 2px 8px; font-size: 11px; cursor: pointer; color: #64748b;
+      transition: all 0.15s;
+    }
+    .flag-btn:hover { border-color: #dc2626; color: #dc2626; }
+    .flag-btn.is-flagged { border-color: #dc2626; color: #dc2626; background: #fef2f2; }
+    .flag-note-text { font-size: 11px; color: #dc2626; font-style: italic; }
+
+    /* Logs sub-tabs */
+    .sub-tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #e2e8f0; }
+    .sub-tab {
+      padding: 8px 16px; border: none; background: none; cursor: pointer;
+      font-size: 13px; color: #64748b; border-bottom: 2px solid transparent;
+      font-weight: 500; transition: all 0.15s;
+    }
+    .sub-tab:hover { color: #2563eb; }
+    .sub-tab.active { color: #2563eb; border-bottom-color: #2563eb; }
 
     /* Empty state */
     .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
@@ -296,42 +320,79 @@
       </div>
     </div>
 
-    <!-- Tab 2: Unmatched Logs -->
+    <!-- Tab 2: Logs (Unmatched + Flagged) -->
     <div id="tab-logs" class="tab-content">
       <div class="card">
-        <div class="filter-bar">
-          <select id="logs-filter">
-            <option value="">Всички</option>
-            <option value="false" selected>Нерешени</option>
-            <option value="true">Решени</option>
-          </select>
-          <button class="btn btn-primary" id="export-logs-btn">&#8595; Експорт TSV</button>
+        <div class="sub-tabs">
+          <button class="sub-tab active" data-subtab="unmatched">Неразпознати въпроси</button>
+          <button class="sub-tab" data-subtab="flagged">Грешни отговори</button>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Въпрос</th>
-                <th>Роля</th>
-                <th>Институция</th>
-                <th>Дата</th>
-                <th>Статус</th>
-                <th>Действия</th>
-              </tr>
-            </thead>
-            <tbody id="logs-tbody"></tbody>
-          </table>
-        </div>
-        <div id="logs-pagination" class="pagination" style="display:none;">
-          <span class="page-info">Общо: <strong id="logs-total">0</strong> записа</span>
-          <div class="page-btns">
-            <button id="logs-prev" disabled>&#8592; Предишна</button>
-            <span id="logs-page-info">Страница 1 от 1</span>
-            <button id="logs-next" disabled>Следваща &#8594;</button>
+
+        <!-- Sub-tab: Unmatched -->
+        <div id="subtab-unmatched">
+          <div class="filter-bar">
+            <select id="logs-filter">
+              <option value="">Всички</option>
+              <option value="false" selected>Нерешени</option>
+              <option value="true">Решени</option>
+            </select>
+            <button class="btn btn-primary" id="export-logs-btn">&#8595; Експорт TSV</button>
           </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Въпрос</th>
+                  <th>Роля</th>
+                  <th>Институция</th>
+                  <th>Дата</th>
+                  <th>Статус</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="logs-tbody"></tbody>
+            </table>
+          </div>
+          <div id="logs-pagination" class="pagination" style="display:none;">
+            <span class="page-info">Общо: <strong id="logs-total">0</strong> записа</span>
+            <div class="page-btns">
+              <button id="logs-prev" disabled>&#8592; Предишна</button>
+              <span id="logs-page-info">Страница 1 от 1</span>
+              <button id="logs-next" disabled>Следваща &#8594;</button>
+            </div>
+          </div>
+          <div id="logs-empty" class="empty" style="display:none;">Няма неразпознати въпроси</div>
         </div>
-        <div id="logs-empty" class="empty" style="display:none;">Няма неразпознати въпроси</div>
+
+        <!-- Sub-tab: Flagged -->
+        <div id="subtab-flagged" style="display:none;">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Въпрос на потребителя</th>
+                  <th>Грешен отговор на бота</th>
+                  <th>Matched Q&A</th>
+                  <th>Бележка</th>
+                  <th>Роля</th>
+                  <th>Дата</th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
+              <tbody id="flagged-tbody"></tbody>
+            </table>
+          </div>
+          <div id="flagged-pagination" class="pagination" style="display:none;">
+            <span class="page-info">Общо: <strong id="flagged-total">0</strong> записа</span>
+            <div class="page-btns">
+              <button id="flagged-prev" disabled>&#8592; Предишна</button>
+              <span id="flagged-page-info">Страница 1 от 1</span>
+              <button id="flagged-next" disabled>Следваща &#8594;</button>
+            </div>
+          </div>
+          <div id="flagged-empty" class="empty" style="display:none;">Няма маркирани грешни отговори</div>
+        </div>
       </div>
     </div>
 
@@ -998,10 +1059,18 @@
           } else {
             matchInfo = `<div class="matched-info" style="color:#dc2626;">Unmatched — няма съвпадение</div>`;
           }
-          return `<div class="chat-bubble bot-msg">
+          const flaggedClass = m.flagged_wrong ? ' flagged' : '';
+          const flagLabel = m.flagged_wrong ? '&#9873; Маркиран' : '&#9872; Грешен отговор';
+          const flagBtnClass = m.flagged_wrong ? 'flag-btn is-flagged' : 'flag-btn';
+          const flagNote = m.flagged_wrong && m.flag_note ? `<span class="flag-note-text">${escHtml(m.flag_note)}</span>` : '';
+          return `<div class="chat-bubble bot-msg${flaggedClass}" id="msg-${m.id}">
             ${escHtml(m.content)}
             <div class="bubble-meta">${formatDate(m.created_at)}</div>
             ${matchInfo}
+            <div class="bubble-actions">
+              <button class="${flagBtnClass}" onclick="toggleFlag(${m.id}, ${!m.flagged_wrong})">${flagLabel}</button>
+              ${flagNote}
+            </div>
           </div>`;
         }).join('');
       }
@@ -1015,6 +1084,151 @@
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
   }
+
+  // ===== Flag toggle =====
+  window.toggleFlag = async function(msgId, shouldFlag) {
+    if (shouldFlag) {
+      const note = prompt('Бележка (по избор) — опишете какво е грешно:');
+      if (note === null) return; // cancelled
+      try {
+        await api('POST', '/messages/' + msgId + '/flag', { note: note || null });
+        showToast('Отговор #' + msgId + ' маркиран като грешен', 'success');
+      } catch (err) {
+        showToast('Грешка: ' + err.message, 'error');
+        return;
+      }
+    } else {
+      try {
+        await api('POST', '/messages/' + msgId + '/unflag');
+        showToast('Флагът е премахнат', 'success');
+      } catch (err) {
+        showToast('Грешка: ' + err.message, 'error');
+        return;
+      }
+    }
+    // Re-render the bubble
+    const bubble = document.getElementById('msg-' + msgId);
+    if (bubble) {
+      const chatDiv = bubble.parentElement;
+      chatDiv.removeAttribute('data-loaded');
+      chatDiv.dataset.loaded = '';
+      // Reload the session
+      const detail = chatDiv.closest('.session-detail');
+      if (detail) {
+        const sid = detail.id.replace('detail-', '');
+        delete chatDiv.dataset.loaded;
+        const data = await api('GET', '/sessions/' + sid + '/messages');
+        const msgs = data.messages || [];
+        chatDiv.innerHTML = msgs.map(m => {
+          if (m.role === 'user') {
+            return `<div class="chat-bubble user-msg">${escHtml(m.content)}<div class="bubble-meta">${formatDate(m.created_at)}</div></div>`;
+          }
+          let matchInfo = m.matched_qa_id
+            ? `<div class="matched-info">Matched Q&A #${m.matched_qa_id}: ${escHtml(truncate(m.matched_question, 60))}</div>`
+            : `<div class="matched-info" style="color:#dc2626;">Unmatched — няма съвпадение</div>`;
+          const fc = m.flagged_wrong ? ' flagged' : '';
+          const fl = m.flagged_wrong ? '&#9873; Маркиран' : '&#9872; Грешен отговор';
+          const fbc = m.flagged_wrong ? 'flag-btn is-flagged' : 'flag-btn';
+          const fn = m.flagged_wrong && m.flag_note ? `<span class="flag-note-text">${escHtml(m.flag_note)}</span>` : '';
+          return `<div class="chat-bubble bot-msg${fc}" id="msg-${m.id}">${escHtml(m.content)}<div class="bubble-meta">${formatDate(m.created_at)}</div>${matchInfo}<div class="bubble-actions"><button class="${fbc}" onclick="toggleFlag(${m.id}, ${!m.flagged_wrong})">${fl}</button>${fn}</div></div>`;
+        }).join('');
+        chatDiv.dataset.loaded = '1';
+      }
+    }
+  };
+
+  // ===== Sub-tabs in Logs =====
+  document.querySelectorAll('.sub-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.subtab;
+      document.getElementById('subtab-unmatched').style.display = tab === 'unmatched' ? '' : 'none';
+      document.getElementById('subtab-flagged').style.display = tab === 'flagged' ? '' : 'none';
+      if (tab === 'flagged') loadFlagged();
+    });
+  });
+
+  // ===== Flagged answers =====
+  let flaggedPage = 1;
+  let flaggedTotal = 0;
+  const flaggedLimit = 20;
+  const flaggedTbody = document.getElementById('flagged-tbody');
+  const flaggedEmpty = document.getElementById('flagged-empty');
+  const flaggedPagination = document.getElementById('flagged-pagination');
+  const flaggedPrev = document.getElementById('flagged-prev');
+  const flaggedNext = document.getElementById('flagged-next');
+  const flaggedPageInfoEl = document.getElementById('flagged-page-info');
+  const flaggedTotalEl = document.getElementById('flagged-total');
+
+  flaggedPrev.addEventListener('click', () => { if (flaggedPage > 1) { flaggedPage--; loadFlagged(); } });
+  flaggedNext.addEventListener('click', () => { flaggedPage++; loadFlagged(); });
+
+  async function loadFlagged() {
+    try {
+      const data = await api('GET', '/flagged?page=' + flaggedPage + '&limit=' + flaggedLimit);
+      const items = data.flagged || [];
+      flaggedTotal = data.total || 0;
+
+      if (items.length === 0 && flaggedTotal === 0) {
+        flaggedTbody.innerHTML = '';
+        flaggedEmpty.style.display = 'block';
+        flaggedPagination.style.display = 'none';
+        return;
+      }
+      flaggedEmpty.style.display = 'none';
+
+      const totalPages = Math.max(1, Math.ceil(flaggedTotal / flaggedLimit));
+      flaggedPagination.style.display = 'flex';
+      flaggedTotalEl.textContent = flaggedTotal;
+      flaggedPageInfoEl.textContent = `Страница ${flaggedPage} от ${totalPages}`;
+      flaggedPrev.disabled = flaggedPage <= 1;
+      flaggedNext.disabled = flaggedPage >= totalPages;
+
+      flaggedTbody.innerHTML = items.map(f => `
+        <tr>
+          <td title="${escHtml(f.user_question || '').replace(/"/g, '&quot;')}">${truncate(f.user_question || '—', 60)}</td>
+          <td title="${escHtml(f.bot_answer || '').replace(/"/g, '&quot;')}">${truncate(f.bot_answer, 60)}</td>
+          <td>${f.matched_qa_id ? 'Q&A #' + f.matched_qa_id : '—'}</td>
+          <td>${escHtml(f.flag_note) || '—'}</td>
+          <td><span class="badge badge-${f.user_role}">${roleLabels[f.user_role] || f.user_role || '—'}</span></td>
+          <td>${formatDate(f.created_at)}</td>
+          <td>
+            <button class="btn btn-primary btn-sm" onclick="correctFromFlag(${f.id}, '${escAttr(f.user_question)}')">Коригирай</button>
+            <button class="btn btn-outline btn-sm" onclick="unflagFromList(${f.id})">Премахни флаг</button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      showToast('Грешка при зареждане: ' + err.message, 'error');
+    }
+  }
+
+  function escAttr(str) {
+    if (!str) return '';
+    return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+  }
+
+  window.correctFromFlag = function(msgId, question) {
+    // Switch to Q&A tab and open modal with question pre-filled
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-tab="qa"]').classList.add('active');
+    document.getElementById('tab-qa').classList.add('active');
+    openModal();
+    qaQuestion.value = question;
+    qaQuestion.focus();
+  };
+
+  window.unflagFromList = async function(msgId) {
+    try {
+      await api('POST', '/messages/' + msgId + '/unflag');
+      showToast('Флагът е премахнат', 'success');
+      loadFlagged();
+    } catch (err) {
+      showToast('Грешка: ' + err.message, 'error');
+    }
+  };
 
   // ===== Statistics =====
   async function loadStats() {

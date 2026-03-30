@@ -31,6 +31,8 @@ CREATE TABLE chat_messages (
     role VARCHAR(10) NOT NULL CHECK (role IN ('user', 'assistant')),
     content TEXT NOT NULL,
     matched_qa_id INTEGER REFERENCES qa_pairs(id) ON DELETE SET NULL,
+    flagged_wrong BOOLEAN NOT NULL DEFAULT false,
+    flag_note TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

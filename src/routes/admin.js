@@ -157,6 +157,75 @@ router.get('/logs', async (req, res) => {
   }
 });
 
+// GET /api/admin/logs/export - Export unmatched questions as CSV
+router.get('/logs/export', async (req, res) => {
+  try {
+    const { resolved } = req.query;
+    let where = '';
+    const params = [];
+
+    if (resolved !== undefined) {
+      params.push(resolved === 'true');
+      where = ' WHERE is_resolved = $1';
+    }
+
+    const { rows } = await pool.query(
+      `SELECT id, question, user_role, institution_id, is_resolved, created_at
+       FROM unmatched_questions${where}
+       ORDER BY created_at DESC`,
+      params
+    );
+
+    // Build CSV with BOM for Excel UTF-8 support
+    const header = 'question\tanswer\troles\tcategory';
+    const csvRows = rows.map(r => {
+      const q = r.question.replace(/\t/g, ' ').replace(/\n/g, ' ');
+      return `${q}\t\t${r.user_role}\t`;
+    });
+    const csv = '\uFEFF' + header + '\n' + csvRows.join('\n');
+
+    res.setHeader('Content-Type', 'text/tab-separated-values; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="unmatched_questions.tsv"');
+    res.send(csv);
+  } catch (err) {
+    console.error('Export error:', err);
+    res.status(500).json({ error: 'Грешка при експорт' });
+  }
+});
+
+// POST /api/admin/qa/import - Bulk import Q&A pairs from TSV
+router.post('/qa/import', async (req, res) => {
+  try {
+    const { pairs } = req.body;
+
+    if (!pairs || !Array.isArray(pairs) || pairs.length === 0) {
+      return res.status(400).json({ error: 'Няма данни за импорт' });
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const pair of pairs) {
+      if (!pair.question || !pair.answer || !pair.roles || pair.roles.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      await pool.query(
+        `INSERT INTO qa_pairs (question, answer, roles, category)
+         VALUES ($1, $2, $3, $4)`,
+        [pair.question.trim(), pair.answer.trim(), pair.roles, pair.category || null]
+      );
+      imported++;
+    }
+
+    res.json({ imported, skipped, total: pairs.length });
+  } catch (err) {
+    console.error('Import error:', err);
+    res.status(500).json({ error: 'Грешка при импорт' });
+  }
+});
+
 // POST /api/admin/logs/:id/resolve - Mark log as resolved
 router.post('/logs/:id/resolve', async (req, res) => {
   try {

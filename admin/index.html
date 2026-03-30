@@ -264,6 +264,8 @@
             <option value="parent">Родител</option>
           </select>
           <button class="btn btn-primary" id="add-qa-btn">+ Добави Q&A</button>
+          <button class="btn btn-success" id="import-qa-btn">&#8593; Импорт TSV</button>
+          <input type="file" id="import-file" accept=".tsv,.txt,.csv" style="display:none;">
         </div>
         <div class="table-wrap">
           <table>
@@ -303,6 +305,7 @@
             <option value="false" selected>Нерешени</option>
             <option value="true">Решени</option>
           </select>
+          <button class="btn btn-primary" id="export-logs-btn">&#8595; Експорт TSV</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -796,6 +799,103 @@
     qaQuestion.value = question;
     qaQuestion.focus();
   };
+
+  // ===== Export Logs =====
+  document.getElementById('export-logs-btn').addEventListener('click', () => {
+    const resolved = logsFilter.value;
+    const params = resolved !== '' ? '?resolved=' + resolved : '';
+    const url = '/api/admin/logs/export' + params;
+    const a = document.createElement('a');
+    a.href = url;
+    a.setAttribute('download', '');
+    // Add auth header via fetch and blob
+    fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+      .then(r => r.blob())
+      .then(blob => {
+        const u = URL.createObjectURL(blob);
+        a.href = u;
+        a.download = 'unmatched_questions.tsv';
+        a.click();
+        URL.revokeObjectURL(u);
+        showToast('Файлът е изтеглен', 'success');
+      })
+      .catch(() => showToast('Грешка при експорт', 'error'));
+  });
+
+  // ===== Import Q&A =====
+  const importBtn = document.getElementById('import-qa-btn');
+  const importFile = document.getElementById('import-file');
+
+  importBtn.addEventListener('click', () => importFile.click());
+
+  importFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+    if (lines.length < 2) {
+      showToast('Файлът е празен или има само хедър', 'error');
+      importFile.value = '';
+      return;
+    }
+
+    // Parse header to detect separator (tab or semicolon)
+    const header = lines[0].toLowerCase();
+    const sep = header.includes('\t') ? '\t' : ';';
+    const cols = header.split(sep).map(c => c.trim());
+
+    const qIdx = cols.indexOf('question');
+    const aIdx = cols.indexOf('answer');
+    const rIdx = cols.indexOf('roles');
+    const cIdx = cols.indexOf('category');
+
+    if (qIdx === -1 || aIdx === -1) {
+      showToast('Файлът трябва да съдържа колони: question, answer, roles, category', 'error');
+      importFile.value = '';
+      return;
+    }
+
+    const pairs = [];
+    let skippedNoAnswer = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(sep);
+      const question = (vals[qIdx] || '').trim();
+      const answer = (vals[aIdx] || '').trim();
+      const rolesStr = (rIdx >= 0 ? vals[rIdx] || '' : '').trim();
+      const category = (cIdx >= 0 ? vals[cIdx] || '' : '').trim() || null;
+
+      if (!question) continue;
+      if (!answer) { skippedNoAnswer++; continue; }
+
+      const roles = rolesStr
+        ? rolesStr.split(',').map(r => r.trim().replace(/[{}]/g, '')).filter(Boolean)
+        : ['director'];
+
+      pairs.push({ question, answer, roles, category });
+    }
+
+    if (pairs.length === 0) {
+      showToast(`Няма валидни Q&A за импорт (${skippedNoAnswer} без отговор)`, 'error');
+      importFile.value = '';
+      return;
+    }
+
+    if (!confirm(`Ще бъдат импортирани ${pairs.length} Q&A двойки${skippedNoAnswer ? ` (${skippedNoAnswer} пропуснати без отговор)` : ''}. Продължи?`)) {
+      importFile.value = '';
+      return;
+    }
+
+    try {
+      const result = await api('POST', '/qa/import', { pairs });
+      showToast(`Импортирани: ${result.imported}, пропуснати: ${result.skipped}`, 'success');
+      loadQA();
+    } catch (err) {
+      showToast('Грешка при импорт: ' + err.message, 'error');
+    }
+    importFile.value = '';
+  });
 
   // ===== Conversations =====
   let convosPage = 1;

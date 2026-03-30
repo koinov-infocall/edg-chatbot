@@ -172,6 +172,37 @@
     .pagination button:hover:not(:disabled) { border-color: #2563eb; color: #2563eb; }
     .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    /* Chat history in conversations tab */
+    .session-row { cursor: pointer; }
+    .session-row .expand-icon { transition: transform 0.2s; display: inline-block; font-size: 12px; color: #94a3b8; }
+    .session-row.expanded .expand-icon { transform: rotate(90deg); }
+    .session-detail { display: none; }
+    .session-detail.open { display: table-row; }
+    .session-detail td { padding: 0; }
+    .chat-history {
+      background: #f8fafc; padding: 16px 20px; border-left: 3px solid #2563eb;
+      margin: 4px 12px 12px; border-radius: 8px;
+    }
+    .chat-bubble {
+      margin-bottom: 10px; padding: 8px 12px; border-radius: 10px;
+      font-size: 13px; line-height: 1.5; max-width: 80%;
+    }
+    .chat-bubble.user-msg {
+      background: #2563eb; color: white; margin-left: auto;
+      border-bottom-right-radius: 3px;
+    }
+    .chat-bubble.bot-msg {
+      background: white; color: #1e293b; border: 1px solid #e2e8f0;
+      border-bottom-left-radius: 3px;
+    }
+    .chat-bubble .bubble-meta {
+      font-size: 11px; margin-top: 4px; opacity: 0.7;
+    }
+    .chat-bubble.bot-msg .matched-info {
+      font-size: 11px; color: #64748b; margin-top: 6px;
+      padding-top: 6px; border-top: 1px solid #e2e8f0;
+    }
+
     /* Empty state */
     .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 14px; }
 
@@ -210,6 +241,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-tab="qa">Q&A Manager</button>
     <button class="tab-btn" data-tab="logs">Неразпознати въпроси</button>
+    <button class="tab-btn" data-tab="convos">Разговори</button>
     <button class="tab-btn" data-tab="stats">Статистики</button>
   </div>
 
@@ -243,6 +275,7 @@
                 <th>Роли</th>
                 <th>Категория</th>
                 <th>Статус</th>
+                <th>Създаден</th>
                 <th>Действия</th>
               </tr>
             </thead>
@@ -299,7 +332,55 @@
       </div>
     </div>
 
-    <!-- Tab 3: Statistics -->
+    <!-- Tab 3: Conversations -->
+    <div id="tab-convos" class="tab-content">
+      <div class="card">
+        <div class="filter-bar">
+          <input type="date" id="convos-date-from" title="От дата" style="flex:0; min-width:140px;">
+          <input type="date" id="convos-date-to" title="До дата" style="flex:0; min-width:140px;">
+          <select id="convos-role-filter">
+            <option value="">Всички роли</option>
+            <option value="director">Директор</option>
+            <option value="admin">Админ</option>
+            <option value="teacher">Учител</option>
+            <option value="plr">ПЛР</option>
+            <option value="dod_admin">ДОД Админ</option>
+            <option value="dod_teacher">ДОД Учител</option>
+            <option value="domakin">Домакин</option>
+            <option value="zas">ЗАС</option>
+            <option value="parent">Родител</option>
+          </select>
+          <input type="text" id="convos-inst-filter" placeholder="Институция..." style="min-width:140px;">
+          <button class="btn btn-primary" id="convos-filter-btn">Филтрирай</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Дата</th>
+                <th>Потребител</th>
+                <th>Роля</th>
+                <th>Институция</th>
+                <th>Съобщения</th>
+              </tr>
+            </thead>
+            <tbody id="convos-tbody"></tbody>
+          </table>
+        </div>
+        <div id="convos-pagination" class="pagination" style="display:none;">
+          <span class="page-info">Общо: <strong id="convos-total">0</strong> сесии</span>
+          <div class="page-btns">
+            <button id="convos-prev" disabled>&#8592; Предишна</button>
+            <span id="convos-page-info">Страница 1 от 1</span>
+            <button id="convos-next" disabled>Следваща &#8594;</button>
+          </div>
+        </div>
+        <div id="convos-empty" class="empty" style="display:none;">Няма намерени разговори</div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Statistics -->
     <div id="tab-stats" class="tab-content">
       <div class="stats-grid" id="stats-grid"></div>
       <div class="card">
@@ -437,6 +518,7 @@
 
       if (btn.dataset.tab === 'qa') loadQA();
       if (btn.dataset.tab === 'logs') loadLogs();
+      if (btn.dataset.tab === 'convos') loadConvos();
       if (btn.dataset.tab === 'stats') loadStats();
     });
   });
@@ -534,6 +616,7 @@
         <td>${roleBadges(q.roles)}</td>
         <td>${categoryLabel(q.category)}</td>
         <td><span class="badge badge-status ${q.is_active ? 'badge-active' : 'badge-inactive'}">${q.is_active ? 'Активен' : 'Неактивен'}</span></td>
+        <td>${formatDate(q.created_at)}</td>
         <td>
           <button class="btn btn-outline btn-sm" onclick="editQA(${q.id})">Редактирай</button>
           <button class="btn btn-danger btn-sm" onclick="deleteQA(${q.id})">Изтрий</button>
@@ -713,6 +796,125 @@
     qaQuestion.value = question;
     qaQuestion.focus();
   };
+
+  // ===== Conversations =====
+  let convosPage = 1;
+  let convosTotal = 0;
+  const convosLimit = 20;
+  const convosTbody = document.getElementById('convos-tbody');
+  const convosEmpty = document.getElementById('convos-empty');
+  const convosPagination = document.getElementById('convos-pagination');
+  const convosPrev = document.getElementById('convos-prev');
+  const convosNext = document.getElementById('convos-next');
+  const convosPageInfoEl = document.getElementById('convos-page-info');
+  const convosTotalEl = document.getElementById('convos-total');
+
+  convosPrev.addEventListener('click', () => { if (convosPage > 1) { convosPage--; loadConvos(); } });
+  convosNext.addEventListener('click', () => { convosPage++; loadConvos(); });
+  document.getElementById('convos-filter-btn').addEventListener('click', () => { convosPage = 1; loadConvos(); });
+
+  async function loadConvos() {
+    try {
+      let params = `?page=${convosPage}&limit=${convosLimit}`;
+      const role = document.getElementById('convos-role-filter').value;
+      const inst = document.getElementById('convos-inst-filter').value.trim();
+      const dateFrom = document.getElementById('convos-date-from').value;
+      const dateTo = document.getElementById('convos-date-to').value;
+      if (role) params += '&role=' + encodeURIComponent(role);
+      if (inst) params += '&institution=' + encodeURIComponent(inst);
+      if (dateFrom) params += '&date_from=' + dateFrom;
+      if (dateTo) params += '&date_to=' + dateTo;
+
+      const data = await api('GET', '/sessions' + params);
+      const sessions = data.sessions || [];
+      convosTotal = data.total || 0;
+
+      if (sessions.length === 0 && convosTotal === 0) {
+        convosTbody.innerHTML = '';
+        convosEmpty.style.display = 'block';
+        convosPagination.style.display = 'none';
+        return;
+      }
+      convosEmpty.style.display = 'none';
+
+      const totalPages = Math.max(1, Math.ceil(convosTotal / convosLimit));
+      convosPagination.style.display = 'flex';
+      convosTotalEl.textContent = convosTotal;
+      convosPageInfoEl.textContent = `Страница ${convosPage} от ${totalPages}`;
+      convosPrev.disabled = convosPage <= 1;
+      convosNext.disabled = convosPage >= totalPages;
+
+      convosTbody.innerHTML = sessions.map(s => `
+        <tr class="session-row" data-sid="${s.id}" onclick="toggleSession('${s.id}')">
+          <td><span class="expand-icon">&#9654;</span></td>
+          <td>${formatDate(s.created_at)}</td>
+          <td>${s.user_id}</td>
+          <td><span class="badge badge-${s.role}">${roleLabels[s.role] || s.role}</span></td>
+          <td>${s.institution_name || '—'}</td>
+          <td>${s.message_count}</td>
+        </tr>
+        <tr class="session-detail" id="detail-${s.id}">
+          <td colspan="6"><div class="chat-history" id="chat-${s.id}">Зареждане...</div></td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      showToast('Грешка при зареждане на разговори: ' + err.message, 'error');
+    }
+  }
+
+  window.toggleSession = async function(sid) {
+    const row = document.querySelector(`tr[data-sid="${sid}"]`);
+    const detail = document.getElementById('detail-' + sid);
+    const chatDiv = document.getElementById('chat-' + sid);
+
+    if (detail.classList.contains('open')) {
+      detail.classList.remove('open');
+      row.classList.remove('expanded');
+      return;
+    }
+
+    row.classList.add('expanded');
+    detail.classList.add('open');
+
+    if (chatDiv.dataset.loaded) return;
+
+    try {
+      const data = await api('GET', '/sessions/' + sid + '/messages');
+      const msgs = data.messages || [];
+
+      if (msgs.length === 0) {
+        chatDiv.innerHTML = '<div class="empty" style="padding:12px;">Няма съобщения</div>';
+      } else {
+        chatDiv.innerHTML = msgs.map(m => {
+          if (m.role === 'user') {
+            return `<div class="chat-bubble user-msg">
+              ${escHtml(m.content)}
+              <div class="bubble-meta">${formatDate(m.created_at)}</div>
+            </div>`;
+          }
+          let matchInfo = '';
+          if (m.matched_qa_id) {
+            matchInfo = `<div class="matched-info">Matched Q&A #${m.matched_qa_id}: ${escHtml(truncate(m.matched_question, 60))}</div>`;
+          } else {
+            matchInfo = `<div class="matched-info" style="color:#dc2626;">Unmatched — няма съвпадение</div>`;
+          }
+          return `<div class="chat-bubble bot-msg">
+            ${escHtml(m.content)}
+            <div class="bubble-meta">${formatDate(m.created_at)}</div>
+            ${matchInfo}
+          </div>`;
+        }).join('');
+      }
+      chatDiv.dataset.loaded = '1';
+    } catch (err) {
+      chatDiv.innerHTML = '<div class="empty" style="color:#dc2626;">Грешка при зареждане</div>';
+    }
+  };
+
+  function escHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+  }
 
   // ===== Statistics =====
   async function loadStats() {

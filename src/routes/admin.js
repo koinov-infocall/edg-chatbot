@@ -180,6 +180,79 @@ router.post('/logs/:id/resolve', async (req, res) => {
   }
 });
 
+// GET /api/admin/sessions - List chat sessions (paginated, filterable)
+router.get('/sessions', async (req, res) => {
+  try {
+    const { role, institution, date_from, date_to } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const offset = (page - 1) * limit;
+
+    let where = 'WHERE 1=1';
+    const params = [];
+
+    if (role) {
+      params.push(role);
+      where += ` AND s.role = $${params.length}`;
+    }
+    if (institution) {
+      params.push('%' + institution + '%');
+      where += ` AND s.institution_name ILIKE $${params.length}`;
+    }
+    if (date_from) {
+      params.push(date_from);
+      where += ` AND s.created_at >= $${params.length}::date`;
+    }
+    if (date_to) {
+      params.push(date_to);
+      where += ` AND s.created_at < ($${params.length}::date + interval '1 day')`;
+    }
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM chat_sessions s ${where}`, params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    params.push(limit);
+    params.push(offset);
+    const { rows } = await pool.query(
+      `SELECT s.*, COUNT(m.id) as message_count
+       FROM chat_sessions s
+       LEFT JOIN chat_messages m ON m.session_id = s.id
+       ${where}
+       GROUP BY s.id
+       ORDER BY s.created_at DESC
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params
+    );
+
+    res.json({ sessions: rows, total, page, limit });
+  } catch (err) {
+    console.error('Sessions error:', err);
+    res.status(500).json({ error: 'Грешка при зареждане на сесиите' });
+  }
+});
+
+// GET /api/admin/sessions/:id/messages - Get session messages with matched Q&A info
+router.get('/sessions/:id/messages', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await pool.query(
+      `SELECT m.id, m.role, m.content, m.matched_qa_id, m.created_at,
+              q.question as matched_question, q.answer as matched_answer
+       FROM chat_messages m
+       LEFT JOIN qa_pairs q ON q.id = m.matched_qa_id
+       WHERE m.session_id = $1
+       ORDER BY m.created_at ASC`,
+      [id]
+    );
+    res.json({ messages: rows });
+  } catch (err) {
+    console.error('Session messages error:', err);
+    res.status(500).json({ error: 'Грешка при зареждане на съобщенията' });
+  }
+});
+
 // GET /api/admin/stats - Usage statistics
 router.get('/stats', async (req, res) => {
   try {

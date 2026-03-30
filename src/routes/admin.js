@@ -22,29 +22,29 @@ router.get('/qa', async (req, res) => {
     const offset = (page - 1) * limit;
 
     let where = 'WHERE 1=1';
-    const params = [];
+    const filterParams = [];
 
     if (role) {
-      params.push(role);
-      where += ` AND $${params.length} = ANY(roles)`;
+      filterParams.push(role);
+      where += ` AND $${filterParams.length} = ANY(roles)`;
     }
     if (category) {
-      params.push(category);
-      where += ` AND category = $${params.length}`;
+      filterParams.push(category);
+      where += ` AND category = $${filterParams.length}`;
     }
     if (active !== undefined) {
-      params.push(active === 'true');
-      where += ` AND is_active = $${params.length}`;
+      filterParams.push(active === 'true');
+      where += ` AND is_active = $${filterParams.length}`;
     }
 
-    const countResult = await pool.query(`SELECT COUNT(*) FROM qa_pairs ${where}`, params);
+    const countResult = await pool.query(`SELECT COUNT(*) FROM qa_pairs ${where}`, filterParams);
     const total = parseInt(countResult.rows[0].count);
 
-    params.push(limit);
-    params.push(offset);
+    const selectParams = [...filterParams, limit, offset];
+    const n = filterParams.length;
     const { rows } = await pool.query(
-      `SELECT * FROM qa_pairs ${where} ORDER BY id ASC LIMIT $${params.length - 1} OFFSET $${params.length}`,
-      params
+      `SELECT * FROM qa_pairs ${where} ORDER BY id ASC LIMIT $${n + 1} OFFSET $${n + 2}`,
+      selectParams
     );
 
     res.json({ qa_pairs: rows, total, page, limit });
